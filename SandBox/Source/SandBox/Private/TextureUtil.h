@@ -6,6 +6,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "TextureUtil.generated.h"
 
+#define BUFSIZE 960*540*4
+
 /**
  * 
  */
@@ -22,4 +24,11 @@ class UTextureUtil : public UBlueprintFunctionLibrary
 
 	UFUNCTION(BlueprintCallable, Category = "ObjectDeliverer Test")
 	static void UpdateTextureWhiteNoise(UTexture2D* Texture);
+
+	UFUNCTION(BlueprintCallable, Category = "ObjectDeliverer Test")
+	static void UpdateTextureWhiteNoiseRed(UTexture2D* Texture);
+
+	static uint8 buf[BUFSIZE];
+	static uint8 bufred[BUFSIZE];
+
 };

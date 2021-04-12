@@ -1,19 +1,47 @@
 ﻿
 #pragma comment(lib, "OpenGL32.lib")
+#define _CRT_SECURE_NO_WARNINGS
 
 #include <windows.h>
 #include <tchar.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "GL/glew.h"
 #include "GL/eglew.h"
 #include "GL/wglew.h"
 
+
 LPCWSTR	gName = L"OpenGLテスト";
+HDC dc;
+HGLRC glRC;
+int count;
 
 // ウィンドウプロシージャ
 LRESULT CALLBACK WndProc(HWND hWnd, UINT mes, WPARAM wParam, LPARAM lParam) {
-	if (mes == WM_DESTROY || mes == WM_CLOSE) { PostQuitMessage(0); return 0; }
+	if (mes == WM_DESTROY || mes == WM_CLOSE) {
+		PostQuitMessage(0);
+		return 0; 
+	}
 	return DefWindowProc(hWnd, mes, wParam, lParam);
+}
+
+int
+dump_frame()
+{
+	const int sz = 800 * 600 * 4;
+	byte* buf = new byte[sz];
+
+	// サイズ 800, 600 の画面を buf へコピーする
+	glReadBuffer(GL_BACK);
+	glReadPixels(0, 0, 800, 600, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+
+	// Fileに出力する
+	FILE *fp = fopen("capture.raw", "wb");
+	fwrite(buf, sz, 1, fp);
+	fclose(fp);
+
+	delete buf;
+	return 0;
 }
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
@@ -50,7 +78,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		0,
 		0, 0, 0
 	};
-	HDC dc = GetDC(hWnd);
+	dc = GetDC(hWnd);
 	int format = ChoosePixelFormat(dc, &pfd);
 	if (format == 0)
 		return 0; // 該当するピクセルフォーマットが無い
@@ -60,7 +88,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		return 0; // DCへフォーマットを設定するのに失敗
 
 	// OpenGL contextを作成
-	HGLRC glRC = wglCreateContext(dc);
+	glRC = wglCreateContext(dc);
 
 	// 作成されたコンテキストがカレント（現在使用中のコンテキスト）か？
 	if (!wglMakeCurrent(dc, glRC))
@@ -77,14 +105,19 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		}
 		else {
 			wglMakeCurrent(dc, glRC);
-			glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
+			glClearColor(1.0f, 0.5f, 1.0f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			glRectf(-0.5f, -0.5f, 0.5f, 0.5f);
+			glRectf(-1.0f, -0.5f, 0.5f, 0.5f);
 
 			glFlush();
 			SwapBuffers(dc);
 			wglMakeCurrent(NULL, NULL);
+
+			if (count==0) {
+				dump_frame();
+				count++;
+			}
 		}
 	} while (msg.message != WM_QUIT);
 

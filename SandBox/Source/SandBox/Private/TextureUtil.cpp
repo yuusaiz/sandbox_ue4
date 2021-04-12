@@ -5,6 +5,7 @@
 
 uint8 UTextureUtil::buf[BUFSIZE];
 uint8 UTextureUtil::bufred[BUFSIZE];
+int UTextureUtil::count;
 
 UTexture2D* UTextureUtil::CreateTexture(int32 Width, int32 Height)
 {
@@ -27,10 +28,12 @@ void UTextureUtil::UpdateTextureWhiteNoise(UTexture2D* Texture)
 //	uint8 buf[BUFSIZE];
 	memset(buf, 100, sizeof buf);
 
+#if 1
 	//for (int i = 0; i < BUFSIZE; i++) {
 	for (int i = 500 * 540 * 4; i < 510 * 540 * 4; i++) {
 		buf[i] = rand() % 256;
 	}
+#endif
 
 	Texture->UpdateTextureRegions(0, 1, Region, 4 * Texture->GetSizeX(), 4, buf);
 }
@@ -41,16 +44,18 @@ void UTextureUtil::UpdateTextureWhiteNoiseRed(UTexture2D* Texture)
 
 //#define BUFSIZE 960*540*4
 //	uint8 buf[BUFSIZE];
-	memset(bufred, 200, sizeof buf);
+	memset(bufred, count % 256, sizeof buf);
+	count++;
 
+#if 1
 	//for (int i = 0; i < BUFSIZE; i++) {
 	for (int i = 500 * 540 * 4; i < 510 * 540 * 4; i++) {
 		bufred[i] = rand() % 256;
 		if (i % 4 == 2) {
 			bufred[i] = 128 + bufred[i] / 2;
 		}
-		
 	}
+#endif
 
 	Texture->UpdateTextureRegions(0, 1, Region, 4 * Texture->GetSizeX(), 4, bufred);
 }

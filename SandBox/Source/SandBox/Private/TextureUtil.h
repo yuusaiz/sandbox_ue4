@@ -30,5 +30,6 @@ class UTextureUtil : public UBlueprintFunctionLibrary
 
 	static uint8 buf[BUFSIZE];
 	static uint8 bufred[BUFSIZE];
+	static int count;
 
 };

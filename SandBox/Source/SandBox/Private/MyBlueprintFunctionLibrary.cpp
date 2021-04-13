@@ -111,9 +111,33 @@ void UMyBlueprintFunctionLibrary::GetPicOpenGL(int width, int height, uint8 *buf
 	//return 0;
 
 }
-void UMyBlueprintFunctionLibrary::GetDcOpenGL(int width, int height, uint8 *buf)
+
+HWND UMyBlueprintFunctionLibrary::GetWindowDc(int width, int height)
 {
-	UE_LOG(LogTemp, Log, TEXT("GetPicOpenGL"));
+	// アプリケーションの初期化
+	LPCWSTR	gName = L"OpenGLテスト";
+
+	//MSG msg;
+	HWND hWnd;
+	WNDCLASSEX wcex = { sizeof(WNDCLASSEX), CS_OWNDC | CS_HREDRAW | CS_VREDRAW, DefWindowProc, 0, 0, hInstance, NULL, NULL, (HBRUSH)(COLOR_WINDOW + 1), NULL, (TCHAR*)gName, NULL };
+	if (!RegisterClassEx(&wcex)) {
+		UE_LOG(LogTemp, Log, TEXT("RegisterClassEx fail %dL"), __LINE__);
+		return 0;
+	}
+
+	RECT R = { 0, 0, width, height };
+	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, FALSE);
+	hWnd = CreateWindow(gName, gName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, R.right - R.left, R.bottom - R.top, NULL, NULL, hInstance, NULL);
+	if (!hWnd) {
+		UE_LOG(LogTemp, Log, TEXT("CreateWindow fail %dL"), __LINE__);
+		return 0;
+	}
+	return hWnd;
+}
+
+void UMyBlueprintFunctionLibrary::GetDcOpenGL(int width, int height, uint8 *buf, bool createwin)
+{
+	UE_LOG(LogTemp, Log, TEXT("GetDcOpenGL"));
 
 	PIXELFORMATDESCRIPTOR pfd = {
 		sizeof(PIXELFORMATDESCRIPTOR),
@@ -143,36 +167,42 @@ void UMyBlueprintFunctionLibrary::GetDcOpenGL(int width, int height, uint8 *buf)
 		},
 	};
 
+	if (createwin) {
+		HWND tmphDC = GetWindowDc(width, height);
+		mhDC = GetDC(tmphDC);
+	}
+	else {
+		/* ハンドルデバイスコンテキスト(HDC)を作成 */
+		mhDC = CreateCompatibleDC(NULL);
+		UE_LOG(LogTemp, Log, TEXT("GetDcOpenGL %dL %x"), __LINE__, mhDC);
+
+	}
 
 
-
-	/* ハンドルデバイスコンテキスト(HDC)を作成 */
-	mhDC = CreateCompatibleDC(NULL);
-	UE_LOG(LogTemp, Log, TEXT("GetPicOpenGL %dL %x"), __LINE__, mhDC);
 
 	/* 描画領域となるビットマップを作成 */
 	void *pvBits;
 	mhBMP = CreateDIBSection(mhDC, &bmi, DIB_RGB_COLORS, &pvBits, NULL, 0);
-	UE_LOG(LogTemp, Log, TEXT("GetPicOpenGL %dL %x"), __LINE__, mhBMP);
+	UE_LOG(LogTemp, Log, TEXT("GetDcOpenGL %dL %x"), __LINE__, mhBMP);
 
 	/* HDCにビットマップを設定 */
 	SelectObject(mhDC, mhBMP);
-	UE_LOG(LogTemp, Log, TEXT("GetPicOpenGL %dL %x"), __LINE__, mhBMP);
+	UE_LOG(LogTemp, Log, TEXT("GetDcOpenGL %dL %x"), __LINE__, mhBMP);
 
 	/* ピクセルフォーマットを設定 */
 	int pixFormat = ChoosePixelFormat(mhDC, &pfd);
 	SetPixelFormat(mhDC, pixFormat, &pfd);
-	UE_LOG(LogTemp, Log, TEXT("GetPicOpenGL %dL %x"), __LINE__, pixFormat);
+	UE_LOG(LogTemp, Log, TEXT("GetDcOpenGL %dL %x"), __LINE__, pixFormat);
 
 	/* レンダリングコンテキスト(RC)を作成 */
 	mhRC = wglCreateContext(mhDC);
-	UE_LOG(LogTemp, Log, TEXT("UpdatePicOpenGL %dL %x"), __LINE__, mhRC);
+	UE_LOG(LogTemp, Log, TEXT("GetDcOpenGL %dL %x"), __LINE__, mhRC);
 
 }
 
 void UMyBlueprintFunctionLibrary::UpdatePicOpenGL(int width, int height, uint8 *buf, int cnt)
 {
-	//UE_LOG(LogTemp, Log, TEXT("UpdatePicOpenGL"));
+	UE_LOG(LogTemp, Log, TEXT("UpdatePicOpenGL"));
 	cnt %= 256;
 
 	/* RCを描画対象に設定 */
@@ -194,8 +224,9 @@ void UMyBlueprintFunctionLibrary::UpdatePicOpenGL(int width, int height, uint8 *
 	/* 描画したデータを取得 */
 	//IplImage *img = cvCreateImage(cvSize(WIDTH, HEIGHT), 8, 4);
 	//glReadPixels(0, 0, WIDTH, HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, img->imageData);
+	uint8 tmp = buf[100];
 	glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buf);
-	//UE_LOG(LogTemp, Log, TEXT("UpdatePicOpenGL %dL"), __LINE__);
+	UE_LOG(LogTemp, Log, TEXT("UpdatePicOpenGL %dL [100] %d -> %d"), __LINE__, tmp, buf[100]);
 
 
 	/* RGB->BGRに変換して画像保存 */

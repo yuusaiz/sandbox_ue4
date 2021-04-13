@@ -78,7 +78,7 @@ UTexture2D* UTextureUtil::CreateTextureByGL(int32 Width, int32 Height)
 	auto Texture = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
 	Texture->UpdateResource();
 
-	UMyBlueprintFunctionLibrary::GetDcOpenGL(Texture->GetSizeX(), Texture->GetSizeY(), bufGL);
+	UMyBlueprintFunctionLibrary::GetDcOpenGL(Texture->GetSizeX(), Texture->GetSizeY(), bufGL, true);
 
 
 	return Texture;

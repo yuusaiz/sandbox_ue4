@@ -32,9 +32,10 @@ public:
 	static void PrintAdress(UObject *texture);
 	UFUNCTION(BlueprintCallable, Category = "MyBP")
 	static void DeleteDcOpenGL();
+	static HWND GetWindowDc(int width, int height);
 
 	static void GetPicOpenGL(int width, int height, uint8 *buf);
-	static void GetDcOpenGL(int width, int height, uint8 *buf);
+	static void GetDcOpenGL(int width, int height, uint8 *buf, bool createwin);
 	static void UpdatePicOpenGL(int width, int height, uint8 *buf, int cnt);
 
 	static HDC mhDC;

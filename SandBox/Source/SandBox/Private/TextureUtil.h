@@ -19,6 +19,12 @@ class UTextureUtil : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "ObjectDeliverer Test")
 	static UTexture2D* CreateTexture(int32 Width, int32 Height);
 
+	UFUNCTION(BlueprintPure, Category = "ObjectDeliverer Test")
+	static UTexture2D* CreateTextureByGL(int32 Width, int32 Height);
+
+	UFUNCTION(BlueprintCallable, Category = "ObjectDeliverer Test")
+	static void UpdateTextureByGL(UTexture2D* Texture);
+
 	UFUNCTION(BlueprintCallable, Category = "ObjectDeliverer Test")
 	static void UpdateTexture(UTexture2D* Texture, const TArray<uint8>& PixelsBuffer);
 
@@ -30,6 +36,7 @@ class UTextureUtil : public UBlueprintFunctionLibrary
 
 	static uint8 buf[BUFSIZE];
 	static uint8 bufred[BUFSIZE];
+	static uint8 bufGL[BUFSIZE];
 	static int count;
 
 };

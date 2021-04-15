@@ -1,4 +1,7 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <Windows.h>
+#include <stdio.h>
 #include <iostream>
 
 #define GLFW_INCLUDE_ES2
@@ -17,6 +20,7 @@ namespace
 	constexpr int WindowHeight = 600;
 	const char* AppTitle = "OpenGLES2";
 }
+unsigned char buf[4 * 800 * 600];
 
 int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
@@ -60,6 +64,8 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 	glfwSwapInterval(1);
 
 	int count = 0;
+	SYSTEMTIME tm,tm2;
+	GetLocalTime(&tm);
 
 	while (glfwWindowShouldClose(window) == GLFW_FALSE)
 	{
@@ -73,9 +79,21 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 
 		glfwSwapBuffers(window);
 
+		//これの有無でどう変わるか
+		glReadPixels(0, 0, WindowWidth, WindowHeight, GL_RGBA, GL_UNSIGNED_BYTE, buf);
 
 		glfwWaitEvents();
 		count++;
+		if (count % 1000 == 0) {
+			GetLocalTime(&tm2);
+			int millisec = (tm2.wSecond - tm.wSecond) * 1000 + (tm2.wMilliseconds - tm.wMilliseconds);
+			char str[256];
+			sprintf(str, "1000frame / %d msec: %.2f fps\nbuf[0]=%d %d %d %d", millisec, 1000.0* 1000.0/millisec, buf[0], buf[1], buf[2], buf[3]);
+			wchar_t wlocal[256];
+			MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, str, 256, wlocal, 256);
+			MessageBox(NULL , wlocal, TEXT("メッセージボックス"), MB_OK);
+			GetLocalTime(&tm);
+		}
 	}
 
 	glfwDestroyWindow(window);

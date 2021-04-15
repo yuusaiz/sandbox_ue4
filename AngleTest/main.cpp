@@ -71,7 +71,7 @@ int init_resources(void)
 		"#version 120\n"  // OpenGL 2.1
 #endif
 		"void main(void) {        "
-		"  gl_FragColor[0] = 0.0; "
+		"  gl_FragColor[0] = 1.0; "
 		"  gl_FragColor[1] = 0.0; "
 		"  gl_FragColor[2] = 1.0; "
 		"}";
@@ -130,7 +130,7 @@ void onDisplay()
 	glDisableVertexAttribArray(attribute_coord2d);
 
 	/* Display the result */
-//	glutSwapBuffers(); // ??
+	glutSwapBuffers(); 
 
 }
 void free_resources()

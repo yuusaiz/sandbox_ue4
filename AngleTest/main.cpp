@@ -16,8 +16,8 @@
 
 namespace
 {
-	constexpr int WindowWidth = 800;
-	constexpr int WindowHeight = 600;
+	constexpr int WindowWidth = 960;
+	constexpr int WindowHeight = 540;
 	const char* AppTitle = "OpenGLES2";
 }
 unsigned char buf[4 * 800 * 600];

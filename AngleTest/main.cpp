@@ -14,6 +14,9 @@
 #   pragma comment(lib, "opengl32.lib")
 #endif
 
+#define OFFSCREEN //これでオフスクリーンレンダリング
+
+
 namespace
 {
 	constexpr int WindowWidth = 960;
@@ -45,6 +48,11 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 #endif
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+#if defined(OFFSCREEN)
+	glfwWindowHint(GLFW_VISIBLE, 0);
+	//glfwWindowHint(GLFW_REFRESH_RATE, 300);
+#endif
+
 
 	// ウィンドウの生成
 	auto window = glfwCreateWindow(WindowWidth, WindowHeight, AppTitle, nullptr, nullptr);
@@ -79,8 +87,9 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 		glClearColor(0.f + (count % 100) / 100.0f, 0.5f, 0.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
+#if !defined(OFFSCREEN)
 		glfwSwapBuffers(window);
-
+#endif
 		//これの有無でどう変わるか
 		glReadPixels(0, 0, WindowWidth, WindowHeight, GL_RGBA, GL_UNSIGNED_BYTE, buf);
 

@@ -20,7 +20,7 @@ namespace
 	constexpr int WindowHeight = 540;
 	const char* AppTitle = "OpenGLES2";
 }
-unsigned char buf[4 * 800 * 600];
+unsigned char buf[4 * 960 * 540];
 
 int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
@@ -74,7 +74,7 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 		// çXêV
 		glViewport(0, 0, WindowWidth, WindowHeight);
 		
-		glClearColor(0.f + (count % 100) / 100.0, 0.5f, 0.f, 1.f);
+		glClearColor(0.f + (count % 100) / 100.0f, 0.5f, 0.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		glfwSwapBuffers(window);

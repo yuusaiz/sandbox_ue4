@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <iostream>
 
-#define GLFW_INCLUDE_ES2
+#define GLFW_INCLUDE_ES2 //これの有無でAngleES環境かを切り替える
 #define GL_GLEXT_PROTOTYPES
 #include <GLFW/glfw3.h>
 #if defined(GLFW_INCLUDE_ES2)
@@ -38,11 +38,13 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 		fprintf(stderr, "err[%d] %s\n", error, description);
 	});
 
+#if defined(GLFW_INCLUDE_ES2)
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 	glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#endif
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
 	// ウィンドウの生成
 	auto window = glfwCreateWindow(WindowWidth, WindowHeight, AppTitle, nullptr, nullptr);

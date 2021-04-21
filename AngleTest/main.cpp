@@ -6,8 +6,8 @@
 
 #pragma once
 //環境設定
-//#define OFFSCREEN //これでオフスクリーンレンダリング
-#define GLFW_INCLUDE_ES2 //これの有無でAngleES環境かを切り替える
+#define OFFSCREEN //これでオフスクリーンレンダリング
+//#define GLFW_INCLUDE_ES2 //これの有無でAngleES環境かを切り替える
 
 #define GL_GLEXT_PROTOTYPES
 
@@ -32,9 +32,6 @@ extern "C" {
 #endif
 
 #pragma comment(lib, "glew32.lib")
-
-
-
 
 namespace
 {
@@ -148,30 +145,7 @@ static GLuint createProgram(const char *vsrc, const char *pv, const char *fsrc, 
 
 	return program;
 }
-// 頂点配列オブジェクトの作成
-static GLuint createObject(GLuint vertices, const GLfloat(*position)[2])
-{
-	// 頂点配列オブジェクト
-	GLuint vao;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
 
-	// 頂点バッファオブジェクト
-	GLuint vbo;
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 2 * vertices, position, GL_STATIC_DRAW);
-
-	// 結合されている頂点バッファオブジェクトを attribute 変数から参照できるようにする
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(0);
-
-	// 頂点バッファオブジェクトと頂点配列オブジェクトの結合を解除する
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	return vao;
-}
 int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
@@ -227,48 +201,47 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 
 	// バーテックスシェーダのソースプログラム
 	static const GLchar vsrc[] =
-#ifndef GLFW_INCLUDE_ES2
-		"#version 150 core\n"
-		"in vec4 pppv;\n"
-#else
-		"#version 100\n"
-		"attribute mediump vec4 pppv;\n"
-#endif
-		"void main(void)\n"
-		"{\n"
-		"  gl_Position = pppv;\n"
-		"}\n";
+//#ifdef GLFW_INCLUDE_ES2
+		"#version 100\n"  // OpenGL ES 2.0
+//#else
+//		"#version 120\n"  // OpenGL 2.1
+//#endif
+		"attribute vec2 coord2d;                  "
+		"void main(void) {                        "
+		"  gl_Position = vec4(coord2d, 0.0, 1.0); "
+		"}";
 
 	// フラグメントシェーダのソースプログラム
 	static const GLchar fsrc[] =
-#ifndef GLFW_INCLUDE_ES2
-		"#version 150 core\n"
-		"out vec4 fffc;\n"
-#else
-		"#version 100\n"
-		"mediump vec4 fffc;\n"
-#endif
-		"void main(void)\n"
-		"{\n"
-		"  fffc = vec4(1.0, 0.0, 0.0, 0.0);\n"
-		"}\n";
+//#ifdef GLFW_INCLUDE_ES2
+		"#version 100\n"  // OpenGL ES 2.0
+//#else
+//		"#version 120\n"  // OpenGL 2.1
+//#endif
+		"void main(void) {        "
+		"  gl_FragColor[0] = 1.0; "
+		"  gl_FragColor[1] = 0.0; "
+		"  gl_FragColor[2] = 1.0; "
+		"}";
 
 	// プログラムオブジェクトの作成
 	GLuint program = createProgram(vsrc, "pv", fsrc, "fc");
+	GLint attribute_coord2d;
+
+	const char* attribute_name = "coord2d";
+	attribute_coord2d = glGetAttribLocation(program, attribute_name);
+	if (attribute_coord2d == -1) {
+		fprintf(stderr, "Could not bind attribute %s\n", attribute_name);
+		return 0;
+	}
 
 	// 図形データ
-	static const GLfloat position[][2] =
-	{
-	  { -0.5f, -0.5f },
-	  {  0.5f, -0.5f },
-	  {  0.5f,  0.5f },
-	  { -0.5f,  0.5f }
+	GLfloat triangle_vertices[][2] = {
+		{ 0.0f,  0.8f},
+		{-0.8f, -0.8f},
+		{ 0.8f, -0.8f},
 	};
-	static const int vertices = sizeof position / sizeof position[0];
 
-	// 頂点配列オブジェクトの作成
-	GLuint vao = createObject(vertices, position);
-	   
 	while (glfwWindowShouldClose(window) == GLFW_FALSE)
 	{
 		glfwPostEmptyEvent();
@@ -279,11 +252,19 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		glUseProgram(program);
+		glEnableVertexAttribArray(attribute_coord2d);
+		/* Describe our vertices array to OpenGL (it can't guess its format automatically) */
+		glVertexAttribPointer(
+			attribute_coord2d, // attribute
+			2,                 // number of elements per vertex, here (x,y)
+			GL_FLOAT,          // the type of each element
+			GL_FALSE,          // take our values as-is
+			0,                 // no extra data between each position
+			triangle_vertices  // pointer to the C array
+		);
 
-		// 図形の描画
-		glBindVertexArray(vao);
-		glDrawArrays(GL_LINE_LOOP, 0, vertices);
-		//glBindVertexArray(0);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDisableVertexAttribArray(attribute_coord2d);
 
 #if !defined(OFFSCREEN)
 		glfwSwapBuffers(window);

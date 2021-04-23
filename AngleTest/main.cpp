@@ -6,8 +6,8 @@
 
 #pragma once
 //環境設定
-#define OFFSCREEN //これでオフスクリーンレンダリング
-//#define GLFW_INCLUDE_ES2 //これの有無でAngleES環境かを切り替える
+//#define OFFSCREEN //これでオフスクリーンレンダリング
+#define GLFW_INCLUDE_ES2 //これの有無でAngleES環境かを切り替える
 
 #define GL_GLEXT_PROTOTYPES
 
@@ -251,6 +251,12 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 		glClearColor(0.f + (count % 100) / 100.0f, 0.5f, 0.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
+		//三角形を動かす
+		float tmpx = 0.0013;
+		float tmp;
+		triangle_vertices[0][0] += tmpx;
+		if (1 < triangle_vertices[0][0]) triangle_vertices[0][0] = -1;
+
 		glUseProgram(program);
 		glEnableVertexAttribArray(attribute_coord2d);
 		/* Describe our vertices array to OpenGL (it can't guess its format automatically) */
@@ -278,7 +284,8 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 			GetLocalTime(&tm2);
 			int millisec = (tm2.wSecond - tm.wSecond) * 1000 + (tm2.wMilliseconds - tm.wMilliseconds);
 			char str[256];
-			sprintf(str, "1000frame / %d msec: %.2f fps\nbuf[0]=%d %d %d %d", millisec, 1000.0* 1000.0/millisec, buf[0], buf[1], buf[2], buf[3]);
+			int idx = (960 * 450 + 200) * 4;
+			sprintf(str, "1000frame / %d msec: %.2f fps\nbuf[0]=%d %d %d %d", millisec, 1000.0* 1000.0/millisec, buf[idx], buf[idx+1], buf[idx+2], buf[idx+3]);
 			wchar_t wlocal[256];
 			MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, str, 256, wlocal, 256);
 			MessageBox(NULL , wlocal, TEXT("メッセージボックス"), MB_OK);

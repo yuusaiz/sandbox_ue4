@@ -3,7 +3,8 @@
 #include <Windows.h>
 #include <stdio.h>
 #include <iostream>
-
+#include <stdlib.h>
+#include <direct.h> // _getcwd
 #pragma once
 //環境設定
 //#define OFFSCREEN //これでオフスクリーンレンダリング
@@ -40,6 +41,57 @@ namespace
 	const char* AppTitle = "OpenGLES2";
 }
 unsigned char buf[4 * 960 * 540];
+
+typedef struct {
+	// レンダリング用シェーダープログラム
+	GLuint shader_program;
+
+	// 位置情報属性
+	GLint attr_pos;
+
+	// UV情報属性
+	GLint attr_uv;
+
+	// テクスチャのUniform
+	GLint unif_texture;
+
+	// 読み込んだテクスチャ
+	GLuint texture_id;
+
+} Extension_LoadTexture;
+
+unsigned char *
+load_bitmap(const char *fname) {
+	FILE* stream;
+	int errorCode;
+	unsigned char header[14];
+	char fff[100];
+	printf(_getcwd(fff, 100));
+	if (NULL == (stream = fopen(fname, "r"))) {
+		errorCode = errno;
+		printf("file open err\n");
+	}
+	fread(&header[0], 1, sizeof header, stream);
+	int size = header[2] | header[3]<<8 | header[4]<<16 | header[5]<<24;
+	int offset = header[10] | header[11]<<8 | header[12]<<16 | header[13]<<24;
+
+	unsigned char *buf = new unsigned char[size];
+	fseek(stream, offset, SEEK_SET);
+	fread(buf, 1, size, stream);
+
+	fclose(stream);
+
+	/*BGRをRGBに補正する*/
+	for (int i=0; i < size; i+=3) {
+		unsigned char tmpR;
+		tmpR = buf[i+2];
+		buf[i + 2] = buf[i];
+		buf[i] = tmpR;
+	}
+
+	return buf;
+}
+
 
 /*
 ** 初期化
@@ -116,6 +168,7 @@ static GLboolean printProgramInfoLog(GLuint program)
 	return (GLboolean)status;
 }
 // プログラムオブジェクトの作成
+int idx=0;
 static GLuint createProgram(const char *vsrc, const char *pv, const char *fsrc, const char *fc)
 {
 	// バーテックスシェーダのシェーダオブジェクト
@@ -138,18 +191,22 @@ static GLuint createProgram(const char *vsrc, const char *pv, const char *fsrc, 
 	glDeleteShader(fobj);
 
 	// プログラムオブジェクトのリンク
-	glBindAttribLocation(program, 0, pv);
+	glBindAttribLocation(program, idx, pv);
 	//glBindFragDataLocation(program, 0, fc);
 	glLinkProgram(program);
 	printProgramInfoLog(program);
 
+	idx++;
 	return program;
 }
 
+HINSTANCE ghInstance;
 int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
+
+	ghInstance = hInstance;
 
 	if (glfwInit() == GL_FALSE)
 	{
@@ -194,6 +251,7 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1);
 	init();
+	Extension_LoadTexture* extension = new Extension_LoadTexture();
 
 	int count = 0;
 	SYSTEMTIME tm,tm2;
@@ -211,6 +269,23 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 		"  gl_Position = vec4(coord2d, 0.0, 1.0); "
 		"}";
 
+	static const GLchar vsrc2[] =
+		//#ifdef GLFW_INCLUDE_ES2
+		"#version 100\n"  // OpenGL ES 2.0
+//#else
+//		"#version 120\n"  // OpenGL 2.1
+//#endif
+		"attribute mediump vec4 attr_pos;"
+		"attribute mediump vec2 attr_uv;"
+		"varying mediump vec2 vary_uv;"
+
+		"void main(void) {                        "
+		"   gl_Position = attr_pos;"
+		"   vary_uv = attr_uv;"
+
+		"}";
+
+
 	// フラグメントシェーダのソースプログラム
 	static const GLchar fsrc[] =
 //#ifdef GLFW_INCLUDE_ES2
@@ -219,9 +294,21 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 //		"#version 120\n"  // OpenGL 2.1
 //#endif
 		"void main(void) {        "
-		"  gl_FragColor[0] = 1.0; "
-		"  gl_FragColor[1] = 0.0; "
+		"  gl_FragColor[0] = 0.1; "
+		"  gl_FragColor[1] = 0.5; "
 		"  gl_FragColor[2] = 1.0; "
+		"}";
+
+	static const GLchar fsrc2[] =
+		//#ifdef GLFW_INCLUDE_ES2
+		"#version 100\n"  // OpenGL ES 2.0
+//#else
+//		"#version 120\n"  // OpenGL 2.1
+//#endif
+		"uniform sampler2D unif_texture;"
+		"varying mediump vec2 vary_uv;"
+		"void main(void) {        "
+		"   gl_FragColor = texture2D(unif_texture, vary_uv);"
 		"}";
 
 	// プログラムオブジェクトの作成
@@ -234,6 +321,55 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 		fprintf(stderr, "Could not bind attribute %s\n", attribute_name);
 		return 0;
 	}
+
+
+	extension->shader_program = createProgram(vsrc2, "pv2", fsrc2, "fc2");
+	attribute_name = "attr_pos";
+	extension->attr_pos = glGetAttribLocation(extension->shader_program, attribute_name);
+	if (extension->attr_pos == -1) {
+		fprintf(stderr, "Could not bind attribute %s\n", attribute_name);
+		return 0;
+	}
+	attribute_name = "attr_uv";
+	extension->attr_uv = glGetAttribLocation(extension->shader_program, attribute_name);
+	if (extension->attr_uv == -1) {
+		fprintf(stderr, "Could not bind attribute %s\n", attribute_name);
+		return 0;
+	}
+
+	// uniformを取り出す
+	const char* uniform_name = "unif_texture";
+	extension->unif_texture = glGetUniformLocation(extension->shader_program, uniform_name);
+	if (extension->unif_texture == -1) {
+		fprintf(stderr, "Could not bind attribute %s\n", uniform_name);
+		return 0;
+	}
+
+	// テクスチャの生成を行う
+	glGenTextures(1, &extension->texture_id);
+	if (extension->texture_id == -1) {
+		fprintf(stderr, "Could not bind attribute %s\n", uniform_name);
+		return 0;
+	}
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glBindTexture(GL_TEXTURE_2D, extension->texture_id);
+	if (glGetError() != GL_NO_ERROR) {
+		fprintf(stderr, "glGetError \n");
+		return 0;
+	}
+	//unsigned char *pixel_data = new unsigned char[100 * 100 * 4];
+	unsigned char *pixel_data=load_bitmap("Bitmap.bmp");
+
+	memset(pixel_data + 2154 * 4, 200, 500 * 4);
+//	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 700, 500, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel_data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 700, 500, 0, GL_RGB, GL_UNSIGNED_BYTE, pixel_data);
+	delete pixel_data;
+	if (glGetError() != GL_NO_ERROR) {
+		fprintf(stderr, "glGetError \n");
+		return 0;
+	}
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	// 図形データ
 	GLfloat triangle_vertices[][2] = {
@@ -251,6 +387,7 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 		glClearColor(0.f + (count % 100) / 100.0f, 0.5f, 0.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
+#if 1
 		//三角形を動かす
 		float tmpx = 0.0013;
 		float tmp;
@@ -259,6 +396,7 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 
 		glUseProgram(program);
 		glEnableVertexAttribArray(attribute_coord2d);
+
 		/* Describe our vertices array to OpenGL (it can't guess its format automatically) */
 		glVertexAttribPointer(
 			attribute_coord2d, // attribute
@@ -271,6 +409,43 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 		glDisableVertexAttribArray(attribute_coord2d);
+		glUseProgram(0);
+#endif
+
+#if 1
+		/* テクスチャ描画 */
+		glUseProgram(extension->shader_program);
+		glEnableVertexAttribArray(extension->attr_pos);
+		glEnableVertexAttribArray(extension->attr_uv);
+		// unif_textureへテクスチャを設定する
+		glUniform1i(extension->unif_texture, 0);
+		// 四角形描画
+		{
+			const GLfloat position[] = {
+				// v0(left top)
+						-0.75f, 0.75f,
+						// v1(left bottom)
+						-0.75f, -0.75f,
+						// v2(right top)
+						0.75f, 0.75f,
+						// v3(right bottom)
+						0.75f, -0.75f, };
+
+			const GLfloat uv[] = {
+				// v0(left top)
+						0, 0,
+						// v1(left bottom)
+						0, 1,
+						// v2(right top)
+						1, 0,
+						// v3(right bottom)
+						1, 1, };
+
+			glVertexAttribPointer(extension->attr_pos, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)position);
+			glVertexAttribPointer(extension->attr_uv, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)uv);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		}
+#endif
 
 #if !defined(OFFSCREEN)
 		glfwSwapBuffers(window);

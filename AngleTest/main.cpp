@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <direct.h> // _getcwd
+#include <thread>
 #pragma once
 //環境設定
 //#define OFFSCREEN //これでオフスクリーンレンダリング
@@ -200,14 +201,31 @@ static GLuint createProgram(const char *vsrc, const char *pv, const char *fsrc, 
 	return program;
 }
 
-HINSTANCE ghInstance;
+extern "C"{
+int AngleMain(int);
+int  AngleMain_in(int a);
+}
+#ifndef MAKELIB
 int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
+	AngleMain(1);
+}
+#endif
 
-	ghInstance = hInstance;
+int
+AngleMain(int wait)
+{
+	std::thread th1(AngleMain_in, 1);
+	if (wait) {
+		th1.join();
+	}
+	return 0;
+}
 
+int
+AngleMain_in(int a){
 	if (glfwInit() == GL_FALSE)
 	{
 		return -1;

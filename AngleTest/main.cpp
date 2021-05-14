@@ -61,13 +61,30 @@ typedef struct {
 
 } Extension_LoadTexture;
 
+int
+outstr(const char *str)
+{
+	FILE *outputfile;         // 出力ストリーム
+
+	outputfile = fopen("angletest_dbg.txt", "a");  // ファイルを書き込み用にオープン(開く)
+	if (outputfile == NULL) {          // オープンに失敗した場合
+		printf("cannot open\n");         // エラーメッセージを出して
+		exit(1);                         // 異常終了
+	}
+
+	fprintf(outputfile, "%s", str); // ファイルに書く
+	fclose(outputfile);          // ファイルをクローズ(閉じる)
+}
+
 unsigned char *
 load_bitmap(const char *fname) {
 	FILE* stream;
 	int errorCode;
 	unsigned char header[14];
-	char fff[100];
-	printf(_getcwd(fff, 100));
+	char fff[1000];
+	outstr(__FILE__ " in");
+	printf(_getcwd(fff, 1000));
+	outstr(fff);
 	if (NULL == (stream = fopen(fname, "r"))) {
 		errorCode = errno;
 		printf("file open err\n");
@@ -89,7 +106,7 @@ load_bitmap(const char *fname) {
 		buf[i + 2] = buf[i];
 		buf[i] = tmpR;
 	}
-
+	outstr(__FILE__ " out");
 	return buf;
 }
 
@@ -376,7 +393,8 @@ AngleMain_in(int a){
 		return 0;
 	}
 	//unsigned char *pixel_data = new unsigned char[100 * 100 * 4];
-	unsigned char *pixel_data=load_bitmap("Bitmap.bmp");
+	//unsigned char *pixel_data=load_bitmap("Bitmap.bmp");
+	unsigned char *pixel_data = new unsigned char[700 * 500 * 4];
 
 	memset(pixel_data + 2154 * 4, 200, 500 * 4);
 //	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 700, 500, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel_data);
@@ -391,7 +409,7 @@ AngleMain_in(int a){
 
 	// 図形データ
 	GLfloat triangle_vertices[][2] = {
-		{ 0.0f,  0.8f},
+		{ 0.0f,  1.0f},
 		{-0.8f, -0.8f},
 		{ 0.8f, -0.8f},
 	};
@@ -402,7 +420,7 @@ AngleMain_in(int a){
 
 		// 更新
 		glViewport(0, 0, WindowWidth, WindowHeight);		
-		glClearColor(0.f + (count % 100) / 100.0f, 0.5f, 0.f, 1.f);
+		glClearColor(0.f + (count % 96) / 100.0f, 0.5f, 0.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 #if 1
@@ -477,8 +495,8 @@ AngleMain_in(int a){
 			GetLocalTime(&tm2);
 			int millisec = (tm2.wSecond - tm.wSecond) * 1000 + (tm2.wMilliseconds - tm.wMilliseconds);
 			char str[256];
-			int idx = (960 * 450 + 200) * 4;
-			sprintf(str, "1000frame / %d msec: %.2f fps\nbuf[0]=%d %d %d %d", millisec, 1000.0* 1000.0/millisec, buf[idx], buf[idx+1], buf[idx+2], buf[idx+3]);
+			int idx = (960 * 50 + 200) * 4;
+			sprintf(str, "1000frame / %d msec: %.2f fps\nbuf[%d]=%d %d %d %d", millisec, 1000.0* 1000.0/millisec, idx, buf[idx], buf[idx+1], buf[idx+2], buf[idx+3]);
 			wchar_t wlocal[256];
 			MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, str, 256, wlocal, 256);
 			MessageBox(NULL , wlocal, TEXT("メッセージボックス"), MB_OK);

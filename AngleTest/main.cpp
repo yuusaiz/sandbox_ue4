@@ -8,7 +8,7 @@
 #include <thread>
 #pragma once
 //環境設定
-//#define OFFSCREEN //これでオフスクリーンレンダリング
+#define OFFSCREEN //これでオフスクリーンレンダリング
 #define GLFW_INCLUDE_ES2 //これの有無でAngleES環境かを切り替える
 
 #define GL_GLEXT_PROTOTYPES
@@ -35,14 +35,6 @@ extern "C" {
 
 #pragma comment(lib, "glew32.lib")
 
-namespace
-{
-	constexpr int WindowWidth = 960;
-	constexpr int WindowHeight = 540;
-	const char* AppTitle = "OpenGLES2";
-}
-unsigned char buf[4 * 960 * 540];
-
 typedef struct {
 	// レンダリング用シェーダープログラム
 	GLuint shader_program;
@@ -60,6 +52,27 @@ typedef struct {
 	GLuint texture_id;
 
 } Extension_LoadTexture;
+
+namespace
+{
+	constexpr int WindowWidth = 960;
+	constexpr int WindowHeight = 540;
+	const char* AppTitle = "OpenGLES2";
+
+	int count = 0;
+	SYSTEMTIME tm1,tm2;
+	// 図形データ
+	GLfloat triangle_vertices[][2] = {
+		{ 0.0f,  1.0f},
+		{-0.8f, -0.8f},
+		{ 0.8f, -0.8f},
+	};
+	GLuint program;
+	GLint attribute_coord2d;
+	Extension_LoadTexture *extension;
+	GLFWwindow *window;
+}
+unsigned char buf[4 * 960 * 540];
 
 int
 outstr(const char *str)
@@ -232,11 +245,104 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 #endif
 
 int
+AngleMainLoop_in(int a)
+{
+	glfwPostEmptyEvent();
+
+	// 更新
+	glViewport(0, 0, WindowWidth, WindowHeight);
+	glClearColor(0.f + (count % 96) / 100.0f, 0.5f, 0.f, 1.f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+#if 1
+	//三角形を動かす
+	float tmpx = 0.0013;
+	float tmp;
+	triangle_vertices[0][0] += tmpx;
+	if (1 < triangle_vertices[0][0]) triangle_vertices[0][0] = -1;
+
+	glUseProgram(program);
+	glEnableVertexAttribArray(attribute_coord2d);
+
+	/* Describe our vertices array to OpenGL (it can't guess its format automatically) */
+	glVertexAttribPointer(
+		attribute_coord2d, // attribute
+		2,                 // number of elements per vertex, here (x,y)
+		GL_FLOAT,          // the type of each element
+		GL_FALSE,          // take our values as-is
+		0,                 // no extra data between each position
+		triangle_vertices  // pointer to the C array
+	);
+
+	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glDisableVertexAttribArray(attribute_coord2d);
+	glUseProgram(0);
+#endif
+
+#if 1
+	/* テクスチャ描画 */
+	glUseProgram(extension->shader_program);
+	glEnableVertexAttribArray(extension->attr_pos);
+	glEnableVertexAttribArray(extension->attr_uv);
+	// unif_textureへテクスチャを設定する
+	glUniform1i(extension->unif_texture, 0);
+	// 四角形描画
+	{
+		const GLfloat position[] = {
+			// v0(left top)
+					-0.75f, 0.75f,
+					// v1(left bottom)
+					-0.75f, -0.75f,
+					// v2(right top)
+					0.75f, 0.75f,
+					// v3(right bottom)
+					0.75f, -0.75f, };
+
+		const GLfloat uv[] = {
+			// v0(left top)
+					0, 0,
+					// v1(left bottom)
+					0, 1,
+					// v2(right top)
+					1, 0,
+					// v3(right bottom)
+					1, 1, };
+
+		glVertexAttribPointer(extension->attr_pos, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)position);
+		glVertexAttribPointer(extension->attr_uv, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)uv);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	}
+#endif
+
+#if !defined(OFFSCREEN)
+	glfwSwapBuffers(window);
+#endif
+	//これの有無でどう変わるか
+	glReadPixels(0, 0, WindowWidth, WindowHeight, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+
+	glfwWaitEvents();
+	count++;
+	if (count % 1000 == 0) {
+		GetLocalTime(&tm2);
+		int millisec = (tm2.wSecond - tm1.wSecond) * 1000 + (tm2.wMilliseconds - tm1.wMilliseconds);
+		char str[256];
+		int idx = (960 * 50 + 200) * 4;
+		sprintf(str, "1000frame / %d msec: %.2f fps\nbuf[%d]=%d %d %d %d", millisec, 1000.0* 1000.0 / millisec, idx, buf[idx], buf[idx + 1], buf[idx + 2], buf[idx + 3]);
+		wchar_t wlocal[256];
+		MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, str, 256, wlocal, 256);
+		MessageBox(NULL, wlocal, TEXT("メッセージボックス"), MB_OK);
+		GetLocalTime(&tm1);
+	}
+	return 0;
+}
+
+
+int
 AngleMain(int wait)
 {
-	std::thread th1(AngleMain_in, 1);
-	if (wait) {
-		th1.join();
+	AngleMain_in(1);
+	while (true){
+		AngleMainLoop_in(1);
 	}
 	return 0;
 }
@@ -268,7 +374,7 @@ AngleMain_in(int a){
 
 
 	// ウィンドウの生成
-	auto window = glfwCreateWindow(WindowWidth, WindowHeight, AppTitle, nullptr, nullptr);
+	window = glfwCreateWindow(WindowWidth, WindowHeight, AppTitle, nullptr, nullptr);
 	if (!window)
 	{
 		glfwTerminate();
@@ -286,11 +392,12 @@ AngleMain_in(int a){
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1);
 	init();
-	Extension_LoadTexture* extension = new Extension_LoadTexture();
+	//Extension_LoadTexture* extension = new Extension_LoadTexture();
+	extension = new Extension_LoadTexture();
 
-	int count = 0;
-	SYSTEMTIME tm,tm2;
-	GetLocalTime(&tm);
+//	int count = 0;
+//	SYSTEMTIME tm,tm2;
+	GetLocalTime(&tm1);
 
 	// バーテックスシェーダのソースプログラム
 	static const GLchar vsrc[] =
@@ -347,8 +454,9 @@ AngleMain_in(int a){
 		"}";
 
 	// プログラムオブジェクトの作成
-	GLuint program = createProgram(vsrc, "pv", fsrc, "fc");
-	GLint attribute_coord2d;
+	//GLuint program = createProgram(vsrc, "pv", fsrc, "fc");
+	program = createProgram(vsrc, "pv", fsrc, "fc");
+	//GLint attribute_coord2d;
 
 	const char* attribute_name = "coord2d";
 	attribute_coord2d = glGetAttribLocation(program, attribute_name);
@@ -407,6 +515,7 @@ AngleMain_in(int a){
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
+#if 0
 	// 図形データ
 	GLfloat triangle_vertices[][2] = {
 		{ 0.0f,  1.0f},
@@ -508,4 +617,7 @@ AngleMain_in(int a){
 	glfwTerminate();
 
 	return -1;
+#else
+	return 0;
+#endif
 }

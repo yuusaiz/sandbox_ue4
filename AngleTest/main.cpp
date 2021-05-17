@@ -6,9 +6,12 @@
 #include <stdlib.h>
 #include <direct.h> // _getcwd
 #include <thread>
+#include <io.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #pragma once
 //環境設定
-#define OFFSCREEN //これでオフスクリーンレンダリング
+//#define OFFSCREEN //これでオフスクリーンレンダリング
 #define GLFW_INCLUDE_ES2 //これの有無でAngleES環境かを切り替える
 
 #define GL_GLEXT_PROTOTYPES
@@ -77,6 +80,7 @@ unsigned char buf[4 * 960 * 540];
 int
 outstr(const char *str)
 {
+#if 0
 	FILE *outputfile;         // 出力ストリーム
 
 	outputfile = fopen("angletest_dbg.txt", "a");  // ファイルを書き込み用にオープン(開く)
@@ -87,17 +91,30 @@ outstr(const char *str)
 
 	fprintf(outputfile, "%s", str); // ファイルに書く
 	fclose(outputfile);          // ファイルをクローズ(閉じる)
+#else
+	int fd;
+	if ((fd = open("angletest_dbg.txt", _O_WRONLY | _O_CREAT | _O_APPEND)) == -1)
+	{
+		perror("open failed on input file");
+		exit(1);
+	}
+	write(fd, str, strlen(str));
+	write(fd, "\n", 1);
+	close(fd);          // ファイルをクローズ(閉じる)
+
+#endif
 }
 
 unsigned char *
 load_bitmap(const char *fname) {
-	FILE* stream;
 	int errorCode;
 	unsigned char header[14];
 	char fff[1000];
 	outstr(__FILE__ " in");
 	printf(_getcwd(fff, 1000));
 	outstr(fff);
+#if 0
+	FILE* stream;
 	if (NULL == (stream = fopen(fname, "r"))) {
 		errorCode = errno;
 		printf("file open err\n");
@@ -111,7 +128,28 @@ load_bitmap(const char *fname) {
 	fread(buf, 1, size, stream);
 
 	fclose(stream);
+#else
+	int fd;
+	if ((fd = open( fname, _O_RDONLY))==-1)
+	{
+		perror("open failed on input file");
+		exit(1);
+	}
+	read(fd,  &header[0], sizeof header);
+	int size = header[2] | header[3] << 8 | header[4] << 16 | header[5] << 24;
+	int offset = header[10] | header[11] << 8 | header[12] << 16 | header[13] << 24;
 
+	unsigned char *buf = new unsigned char[size];
+	outstr("aaa");
+	memset(buf, 0xaa, size);
+	memset(buf, 0xee, size/2);
+	outstr("AAA");
+	lseek(fd, offset, SEEK_SET);
+	read(fd, buf, size);
+	outstr("BBB");
+
+	close(fd);
+#endif
 	/*BGRをRGBに補正する*/
 	for (int i=0; i < size; i+=3) {
 		unsigned char tmpR;
@@ -234,6 +272,7 @@ static GLuint createProgram(const char *vsrc, const char *pv, const char *fsrc, 
 extern "C"{
 int AngleMain(int);
 int  AngleMain_in(int a);
+int AngleMainLoop_in(int a);
 }
 #ifndef MAKELIB
 int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
@@ -392,11 +431,8 @@ AngleMain_in(int a){
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1);
 	init();
-	//Extension_LoadTexture* extension = new Extension_LoadTexture();
 	extension = new Extension_LoadTexture();
 
-//	int count = 0;
-//	SYSTEMTIME tm,tm2;
 	GetLocalTime(&tm1);
 
 	// バーテックスシェーダのソースプログラム
@@ -454,9 +490,7 @@ AngleMain_in(int a){
 		"}";
 
 	// プログラムオブジェクトの作成
-	//GLuint program = createProgram(vsrc, "pv", fsrc, "fc");
 	program = createProgram(vsrc, "pv", fsrc, "fc");
-	//GLint attribute_coord2d;
 
 	const char* attribute_name = "coord2d";
 	attribute_coord2d = glGetAttribLocation(program, attribute_name);
@@ -503,6 +537,9 @@ AngleMain_in(int a){
 	//unsigned char *pixel_data = new unsigned char[100 * 100 * 4];
 	//unsigned char *pixel_data=load_bitmap("Bitmap.bmp");
 	unsigned char *pixel_data = new unsigned char[700 * 500 * 4];
+	memset(pixel_data, 0xee, 700 * 500 * 4);
+	memset(pixel_data, 0x33, 700 * 500 * 4 / 2);
+
 
 	memset(pixel_data + 2154 * 4, 200, 500 * 4);
 //	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 700, 500, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel_data);
@@ -515,109 +552,5 @@ AngleMain_in(int a){
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-#if 0
-	// 図形データ
-	GLfloat triangle_vertices[][2] = {
-		{ 0.0f,  1.0f},
-		{-0.8f, -0.8f},
-		{ 0.8f, -0.8f},
-	};
-
-	while (glfwWindowShouldClose(window) == GLFW_FALSE)
-	{
-		glfwPostEmptyEvent();
-
-		// 更新
-		glViewport(0, 0, WindowWidth, WindowHeight);		
-		glClearColor(0.f + (count % 96) / 100.0f, 0.5f, 0.f, 1.f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-#if 1
-		//三角形を動かす
-		float tmpx = 0.0013;
-		float tmp;
-		triangle_vertices[0][0] += tmpx;
-		if (1 < triangle_vertices[0][0]) triangle_vertices[0][0] = -1;
-
-		glUseProgram(program);
-		glEnableVertexAttribArray(attribute_coord2d);
-
-		/* Describe our vertices array to OpenGL (it can't guess its format automatically) */
-		glVertexAttribPointer(
-			attribute_coord2d, // attribute
-			2,                 // number of elements per vertex, here (x,y)
-			GL_FLOAT,          // the type of each element
-			GL_FALSE,          // take our values as-is
-			0,                 // no extra data between each position
-			triangle_vertices  // pointer to the C array
-		);
-
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-		glDisableVertexAttribArray(attribute_coord2d);
-		glUseProgram(0);
-#endif
-
-#if 1
-		/* テクスチャ描画 */
-		glUseProgram(extension->shader_program);
-		glEnableVertexAttribArray(extension->attr_pos);
-		glEnableVertexAttribArray(extension->attr_uv);
-		// unif_textureへテクスチャを設定する
-		glUniform1i(extension->unif_texture, 0);
-		// 四角形描画
-		{
-			const GLfloat position[] = {
-				// v0(left top)
-						-0.75f, 0.75f,
-						// v1(left bottom)
-						-0.75f, -0.75f,
-						// v2(right top)
-						0.75f, 0.75f,
-						// v3(right bottom)
-						0.75f, -0.75f, };
-
-			const GLfloat uv[] = {
-				// v0(left top)
-						0, 0,
-						// v1(left bottom)
-						0, 1,
-						// v2(right top)
-						1, 0,
-						// v3(right bottom)
-						1, 1, };
-
-			glVertexAttribPointer(extension->attr_pos, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)position);
-			glVertexAttribPointer(extension->attr_uv, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)uv);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-		}
-#endif
-
-#if !defined(OFFSCREEN)
-		glfwSwapBuffers(window);
-#endif
-		//これの有無でどう変わるか
-		glReadPixels(0, 0, WindowWidth, WindowHeight, GL_RGBA, GL_UNSIGNED_BYTE, buf);
-
-		glfwWaitEvents();
-		count++;
-		if (count % 1000 == 0) {
-			GetLocalTime(&tm2);
-			int millisec = (tm2.wSecond - tm.wSecond) * 1000 + (tm2.wMilliseconds - tm.wMilliseconds);
-			char str[256];
-			int idx = (960 * 50 + 200) * 4;
-			sprintf(str, "1000frame / %d msec: %.2f fps\nbuf[%d]=%d %d %d %d", millisec, 1000.0* 1000.0/millisec, idx, buf[idx], buf[idx+1], buf[idx+2], buf[idx+3]);
-			wchar_t wlocal[256];
-			MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, str, 256, wlocal, 256);
-			MessageBox(NULL , wlocal, TEXT("メッセージボックス"), MB_OK);
-			GetLocalTime(&tm);
-		}
-	}
-
-	glfwDestroyWindow(window);
-	glfwTerminate();
-
-	return -1;
-#else
 	return 0;
-#endif
 }

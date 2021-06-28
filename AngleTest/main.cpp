@@ -38,6 +38,10 @@ extern "C" {
 
 #pragma comment(lib, "glew32.lib")
 
+#define USE_BUFFER //GPU側に頂点バッファを持つ
+GLuint buffer;
+GLuint buffer_uv;
+
 typedef struct {
 	// レンダリング用シェーダープログラム
 	GLuint shader_program;
@@ -347,8 +351,17 @@ AngleMainLoop_in(int a)
 					// v3(right bottom)
 					1, 1, };
 
+#ifdef USE_BUFFER
+		glBindBuffer(GL_ARRAY_BUFFER, buffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, position, GL_DYNAMIC_DRAW);
+		glVertexAttribPointer(extension->attr_pos, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+		glBindBuffer(GL_ARRAY_BUFFER, buffer_uv);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, uv, GL_DYNAMIC_DRAW);
+		glVertexAttribPointer(extension->attr_uv, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+#else
 		glVertexAttribPointer(extension->attr_pos, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)position);
 		glVertexAttribPointer(extension->attr_uv, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)uv);
+#endif
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	}
 #endif
@@ -507,6 +520,10 @@ AngleMain_in(int a){
 		fprintf(stderr, "Could not bind attribute %s\n", attribute_name);
 		return 0;
 	}
+#ifdef USE_BUFFER
+	glGenBuffers(1, &buffer);
+	glGenBuffers(1, &buffer_uv);
+#endif
 	attribute_name = "attr_uv";
 	extension->attr_uv = glGetAttribLocation(extension->shader_program, attribute_name);
 	if (extension->attr_uv == -1) {

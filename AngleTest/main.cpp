@@ -38,7 +38,8 @@ extern "C" {
 
 #pragma comment(lib, "glew32.lib")
 
-#define USE_BUFFER //GPU側に頂点バッファを持つ
+#define USE_VBO //GPU側に頂点バッファを持つ
+GLuint buffer_tri;
 GLuint buffer;
 GLuint buffer_uv;
 
@@ -78,6 +79,27 @@ namespace
 	GLint attribute_coord2d;
 	Extension_LoadTexture *extension;
 	GLFWwindow *window;
+
+	GLfloat position[] = {
+		// v0(left top)
+				-0.75f, 0.75f,
+				// v1(left bottom)
+				-0.75f, -0.75f,
+				// v2(right top)
+				0.75f, 0.75f,
+				// v3(right bottom)
+				0.75f, -0.75f, };
+
+	GLfloat uv[] = {
+		// v0(left top)
+				0, 0,
+				// v1(left bottom)
+				0, 1,
+				// v2(right top)
+				1, 0,
+				// v3(right bottom)
+				1, 1, };
+
 }
 unsigned char buf[4 * 960 * 540];
 
@@ -301,12 +323,19 @@ AngleMainLoop_in(int a)
 	//三角形を動かす
 	float tmpx = 0.0013;
 	float tmp;
-	triangle_vertices[0][0] += tmpx;
-	if (1 < triangle_vertices[0][0]) triangle_vertices[0][0] = -1;
+	triangle_vertices[0][1] += tmpx;
+	if (1 < triangle_vertices[0][1]) triangle_vertices[0][1] = -1;
 
 	glUseProgram(program);
-	glEnableVertexAttribArray(attribute_coord2d);
 
+#ifdef USE_VBO
+	glBindBuffer(GL_ARRAY_BUFFER, buffer_tri);
+	//座標更新
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof triangle_vertices[0][1], sizeof triangle_vertices[0][1], &triangle_vertices[0][1]);
+	glVertexAttribPointer(attribute_coord2d, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+
+#else
+	glEnableVertexAttribArray(attribute_coord2d);
 	/* Describe our vertices array to OpenGL (it can't guess its format automatically) */
 	glVertexAttribPointer(
 		attribute_coord2d, // attribute
@@ -316,6 +345,7 @@ AngleMainLoop_in(int a)
 		0,                 // no extra data between each position
 		triangle_vertices  // pointer to the C array
 	);
+#endif
 
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 	glDisableVertexAttribArray(attribute_coord2d);
@@ -331,32 +361,17 @@ AngleMainLoop_in(int a)
 	glUniform1i(extension->unif_texture, 0);
 	// 四角形描画
 	{
-		const GLfloat position[] = {
-			// v0(left top)
-					-0.75f, 0.75f,
-					// v1(left bottom)
-					-0.75f, -0.75f,
-					// v2(right top)
-					0.75f, 0.75f,
-					// v3(right bottom)
-					0.75f, -0.75f, };
 
-		const GLfloat uv[] = {
-			// v0(left top)
-					0, 0,
-					// v1(left bottom)
-					0, 1,
-					// v2(right top)
-					1, 0,
-					// v3(right bottom)
-					1, 1, };
 
-#ifdef USE_BUFFER
+		position[0] += tmpx;
+		if (0.5 < position[0]) position[0] -= 1.0f;
+
+#ifdef USE_VBO
 		glBindBuffer(GL_ARRAY_BUFFER, buffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, position, GL_DYNAMIC_DRAW);
+		//座標更新
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof position[0], &position[0]);
 		glVertexAttribPointer(extension->attr_pos, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
 		glBindBuffer(GL_ARRAY_BUFFER, buffer_uv);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, uv, GL_DYNAMIC_DRAW);
 		glVertexAttribPointer(extension->attr_uv, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
 #else
 		glVertexAttribPointer(extension->attr_pos, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)position);
@@ -512,6 +527,14 @@ AngleMain_in(int a){
 		return 0;
 	}
 
+#ifdef USE_VBO
+	glGenBuffers(1, &buffer_tri);
+
+	glBindBuffer(GL_ARRAY_BUFFER, buffer_tri);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 6, triangle_vertices, GL_DYNAMIC_DRAW);
+	glVertexAttribPointer(attribute_coord2d, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+
+#endif
 
 	extension->shader_program = createProgram(vsrc2, "pv2", fsrc2, "fc2");
 	attribute_name = "attr_pos";
@@ -520,9 +543,17 @@ AngleMain_in(int a){
 		fprintf(stderr, "Could not bind attribute %s\n", attribute_name);
 		return 0;
 	}
-#ifdef USE_BUFFER
+#ifdef USE_VBO
 	glGenBuffers(1, &buffer);
 	glGenBuffers(1, &buffer_uv);
+
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, position, GL_DYNAMIC_DRAW);
+	glVertexAttribPointer(extension->attr_pos, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer_uv);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, uv, GL_DYNAMIC_DRAW);
+	glVertexAttribPointer(extension->attr_uv, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+
 #endif
 	attribute_name = "attr_uv";
 	extension->attr_uv = glGetAttribLocation(extension->shader_program, attribute_name);
